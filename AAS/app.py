@@ -16,7 +16,8 @@ def initialize_app_state():
         "current_page": None,
         "sidebar_state": "collapsed",
         "page_history": [],
-        "sidebar_disabled": False  # Add sidebar_disabled state
+        "sidebar_disabled": False,
+        "app_initialized": False
     }
     
     for var, default_value in state_variables.items():
@@ -30,18 +31,16 @@ def update_page_history(page_name):
     if not st.session_state.page_history or st.session_state.page_history[-1] != page_name:
         st.session_state.page_history.append(page_name)
 
-def main():
-    # Initialize state first
-    initialize_app_state()
-
+def configure_page_layout():
+    """Configure page layout based on current state"""
     # Determine if sidebar should be disabled
-    if not st.session_state["logged_in"] or st.session_state["selected_service"] is None:
+    if not st.session_state.get("logged_in", False) or st.session_state.get("selected_service") is None:
         st.session_state["sidebar_disabled"] = True
     else:
         st.session_state["sidebar_disabled"] = False
 
     # Set sidebar state accordingly
-    if st.session_state["sidebar_disabled"]:
+    if st.session_state.get("sidebar_disabled", True):
         st.set_page_config(
             page_title="Accounting Research Application",
             layout="wide",
@@ -60,23 +59,56 @@ def main():
             initial_sidebar_state="expanded"
         )
 
-    # Use direct session state access
-    if not st.session_state["logged_in"]:
-        st.session_state["current_page"] = "login"
-        update_page_history("login")
+def determine_current_page():
+    """Determine which page to display based on session state"""
+    if not st.session_state.get("logged_in", False):
+        return "login"
+    elif st.session_state.get("selected_service") is None:
+        return "service_selection"
+    elif st.session_state.get("selected_service") == "research":
+        return "research"
+    elif st.session_state.get("selected_service") == "memo":
+        return "memo"
+    else:
+        return "login"  # Default fallback
+
+def render_current_page(page_name):
+    """Render the appropriate page based on page name"""
+    # Update current page and history
+    st.session_state["current_page"] = page_name
+    update_page_history(page_name)
+    
+    # Render the appropriate page
+    if page_name == "login":
         login_page()
-    elif st.session_state["selected_service"] is None:
-        st.session_state["current_page"] = "service_selection"
-        update_page_history("service_selection")
+    elif page_name == "service_selection":
         service_selection_page()
-    elif st.session_state["selected_service"] == "research":
-        st.session_state["current_page"] = "research"
-        update_page_history("research")
+    elif page_name == "research":
         uc1_main()
-    elif st.session_state["selected_service"] == "memo":
-        st.session_state["current_page"] = "memo"
-        update_page_history("memo")
+    elif page_name == "memo":
         uc2_main()
+    else:
+        # Fallback to login if unknown page
+        st.session_state["current_page"] = "login"
+        st.session_state["logged_in"] = False
+        st.session_state["selected_service"] = None
+        login_page()
+
+def main():
+    """Main application entry point with session state management"""
+    # Initialize state first
+    initialize_app_state()
+    
+    # Configure page layout only once
+    if not st.session_state.get("app_initialized", False):
+        configure_page_layout()
+        st.session_state["app_initialized"] = True
+    
+    # Determine current page based on session state
+    current_page = determine_current_page()
+    
+    # Render the current page
+    render_current_page(current_page)
 
 if __name__ == "__main__":
     main()
