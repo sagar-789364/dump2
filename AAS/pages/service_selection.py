@@ -1,250 +1,179 @@
 import streamlit as st
-import base64
-from datetime import datetime
 from pages.header import render_header
 
-def get_login_css():
-    """Return custom CSS styles for login page (minimalistic, professional, with glossy animated greeting)"""
+def get_service_selection_css():
     return """
     <style>
-    .main-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        padding: 20px;
-        margin-top: -80px;
-        padding-top: 80px;
-    }
-    .login-container {
-        width: 100%;
-        max-width: 420px;
-        padding: 48px 36px 36px 36px;
-        border-radius: 18px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        background: #fafbfc;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 32px;
-        border: 1px solid #e6e8eb;
-    }
-    .greeting-text {
-        font-size: 32px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        font-family: 'Segoe UI', 'Arial', sans-serif;
-        text-align: center;
-        width: 100%;
-        margin-bottom: 0px;
-        background: linear-gradient(90deg, #003580, #2453d1, #0e2236, #b2eaff, #00b6ff, #7a2ff7, #ff4fa3, #003580);
-        background-size: 200% 200%;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        color: transparent;
-        animation: glossy-gradient 6s linear infinite;
-    }
-    @keyframes glossy-gradient {
-        0% { background-position: 0% 50%; }
-        25% { background-position: 50% 50%; }
-        50% { background-position: 100% 50%; }
-        75% { background-position: 50% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    .user-icon {
-        width: 180px;
-        height: 180px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 8px auto;
-        /* No background, no border, no shadow */
-        background: none;
-        border: none;
-        box-shadow: none;
-    }
-    .user-icon img {
-        width: 160px;
-        height: 160px;
-        object-fit: contain;
-    }
-    .form-container {
-        width: 100%;
-        max-width: 320px;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 18px;
-        margin: 0 auto;
-    }
-    .form-container .stTextInput,
-    .form-container .stTextInput > div,
-    .form-container .stTextInput input {
+    /* Button styling to match container design */
+    .stButton > button {
+        background: white !important;
+        border-radius: 15px !important;
+        padding: 30px !important;
         width: 100% !important;
-        margin: 0 !important;
-        box-sizing: border-box;
-    }
-    .form-container .stTextInput input {
-        width: 100% !important;
-        text-align: center;
-        padding: 14px 20px;
-        font-size: 16px;
-        border: 1.5px solid #d1d5db;
-        border-radius: 8px;
-        background: #fff;
-        transition: border-color 0.2s;
-        box-sizing: border-box;
-    }
-    .form-container .stTextInput input:focus {
-        border-color: #004b87;
-        outline: none;
-        box-shadow: 0 0 0 2px rgba(0, 75, 135, 0.07);
-    }
-    .form-container .stButton {
-        width: 100% !important;
-        margin: 0 !important;
-    }
-    .form-container .stButton > div {
-        width: 100% !important;
-        margin: 0 !important;
-    }
-    .form-container .stButton button {
-        width: 100% !important;
-        height: 48px !important;
-        background: linear-gradient(90deg, #004b87 60%, #0072ce 100%) !important;
-        color: #fff !important;
-        border: none !important;
-        border-radius: 8px !important;
-        font-size: 16px !important;
-        font-weight: 600 !important;
+        text-align: center !important;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+        transition: transform 0.3s ease, box-shadow 0.3s ease !important;
         cursor: pointer !important;
-        transition: background 0.2s !important;
-        margin: 0 !important;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        border: 2px solid #e0e0e0 !important;
+        height: auto !important;
+        display: block !important;
     }
-    .form-container .stButton button:hover {
-        background: #003a6b !important;
+    .stButton > button:hover {
+        transform: translateY(-5px) !important;
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2) !important;
+        border-color: #004b87 !important;
     }
-    .stAlert {
+    .service-content {
         text-align: center;
-        max-width: 320px;
+        padding: 10px;
+    }
+    .service-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+        color: #004b87;
+    }
+    .service-title {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: #004b87;
+    }
+    .service-description {
+        font-size: 16px;
+        color: #666;
+        line-height: 1.5;
+        margin-bottom: 20px;
+    }
+    .page-header {
+        text-align: center;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    .page-header h1 {
+        color: #004b87;
+        font-size: 36px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    .page-header p {
+        color: #666;
+        font-size: 18px;
+        max-width: 600px;
         margin: 0 auto;
     }
-    .spacer {
-        height: 18px;
-        width: 100%;
-        display: block;
-    }
-    @media (max-width: 768px) {
-        .login-container {
-            max-width: 98vw;
-            padding: 24px 8px;
-        }
-        .greeting-text {
-            font-size: 22px;
-        }
-        .user-icon {
-            width: 100px;
-            height: 100px;
-        }
-        .user-icon img {
-            width: 80px;
-            height: 80px;
-        }
+    .service-columns {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        margin-top: 50px;
+        padding: 20px;
     }
     </style>
     """
 
-def load_logo_base64():
-    """Load and encode the user icon"""
-    try:
-        with open("static/user.png", "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode()
-    except FileNotFoundError:
-        return None
+@st.cache_data
+def get_service_content():
+    """Cache service content to prevent unnecessary recomputation"""
+    return {
+        "research": {
+            "icon": "🔍",
+            "title": "Research",
+            "description": "Access our comprehensive accounting research tools and guidance. "
+                         "Get instant answers to your accounting queries with AI-powered assistance."
+        },
+        "memo": {
+            "icon": "📝",
+            "title": "Memo Generation",
+            "description": "Generate detailed accounting memorandums automatically. "
+                         "Streamline your documentation process with our intelligent memo generator."
+        }
+    }
 
-def initialize_login_state():
-    """Initialize login-related session state variables"""
-    if "logged_in" not in st.session_state:
-        st.session_state["logged_in"] = False
-    if "username" not in st.session_state:
-        st.session_state["username"] = ""
-    if "login_time" not in st.session_state:
-        st.session_state["login_time"] = None
+def handle_service_selection(service: str):
+    """Handle service selection without immediate rerun"""
+    if "service_selection_pending" not in st.session_state:
+        st.session_state.service_selection_pending = None
+    
+    st.session_state.service_selection_pending = service
+    st.session_state.selected_service = service
 
-def handle_login(username: str) -> bool:
-    """Handle login logic"""
-    if username.strip():
-        st.session_state["username"] = username.strip()
-        st.session_state["logged_in"] = True
-        st.session_state["login_time"] = datetime.now().isoformat()
-        return True
-    return False
-
-def get_greeting():
-    """Return Good Morning/Afternoon/Evening based on local time."""
-    hour = datetime.now().hour
-    if 5 <= hour < 12:
-        return "Good Morning"
-    elif 12 <= hour < 17:
-        return "Good Afternoon"
-    else:
-        return "Good Evening"
-
-def login_page():
-    """Render the login page"""
+def service_selection_page():
+    """Render the service selection page with optimized performance"""
+    # Initialize session state for service selection
+    if "selected_service" not in st.session_state:
+        st.session_state.selected_service = None
+    
+    # Page configuration
     # st.set_page_config(
-    #     page_title="Login - Accounting Research Chatbot",
+    #     page_title="Service Selection",
     #     layout="wide",
     #     initial_sidebar_state="collapsed"
     # )
-    initialize_login_state()
-    st.markdown(get_login_css(), unsafe_allow_html=True)
+    
+    # Apply CSS
+    st.markdown(get_service_selection_css(), unsafe_allow_html=True)
+    
+    # Render header
     render_header()
-    col_left, col_center, col_right = st.columns([1.5, 1, 1.5])
-    with col_center:
-        greeting = get_greeting()
-        st.markdown(f'<div class="greeting-text">{greeting}</div>', unsafe_allow_html=True)
-        st.markdown('<div class="spacer"></div>', unsafe_allow_html=True)
-        encoded_user = load_logo_base64()
-        if encoded_user:
-            st.markdown(f'''
-                <div class="user-icon">
-                    <img src="data:image/png;base64,{encoded_user}" alt="User Icon">
-                </div>
-            ''', unsafe_allow_html=True)
-        else:
-            st.markdown('''
-                <div class="user-icon">
-                    <span style="font-size: 80px; color: #004b87;">👤</span>
-                </div>
-            ''', unsafe_allow_html=True)
-        st.markdown('<div class="spacer"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="form-container">', unsafe_allow_html=True)
-        username = st.text_input(
-            "Username",
-            placeholder="Enter your username",
-            key="login_username",
-            label_visibility="collapsed"
-        )
-        st.button("Login", use_container_width=True, key="login_btn")
-        if st.session_state.get("login_btn"):
-            if handle_login(username):
-                # Fetch previous sessions for this user and set in session state
-                try:
-                    from pages.Usecase_1.app_uc1 import fetch_all_sessions_from_memory
-                    st.session_state["all_sessions"] = fetch_all_sessions_from_memory()
-                except Exception as e:
-                    st.session_state["all_sessions"] = []
+    
+    # Get cached service content
+    services = get_service_content()
+    
+    # Page header
+    st.markdown("""
+    <div class="page-header">
+        <h1>Welcome to Accounting Services</h1>
+        <p>Select a service to continue</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Service selection columns
+    st.markdown('<div class="service-columns">', unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        research_content = f"""
+        <div class="service-content">
+            <div class="service-icon">{services['research']['icon']}</div>
+            <div class="service-title">{services['research']['title']}</div>
+            <div class="service-description">{services['research']['description']}</div>
+        </div>
+        """
+        st.markdown(research_content, unsafe_allow_html=True)
+        if st.button("Select Research Service", key="research", use_container_width=True):
+            handle_service_selection("research")
+    
+    with col2:
+        memo_content = f"""
+        <div class="service-content">
+            <div class="service-icon">{services['memo']['icon']}</div>
+            <div class="service-title">{services['memo']['title']}</div>
+            <div class="service-description">{services['memo']['description']}</div>
+        </div>
+        """
+        st.markdown(memo_content, unsafe_allow_html=True)
+        if st.button("Select Memo Generation", key="memo", use_container_width=True):
+            handle_service_selection("memo")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Handle service selection and navigation
+    if st.session_state.get("service_selection_pending"):
+        st.rerun()
+    
+    # Logout and Switch Service buttons in sidebar
+    if not st.session_state.get("sidebar_disabled", False):
+        with st.sidebar:
+            # Switch Service button toggles between research and memo
+            if st.session_state.get("selected_service") in ("research", "memo"):
+                if st.button("Switch Service"):
+                    if st.session_state["selected_service"] == "research":
+                        st.session_state["selected_service"] = "memo"
+                    else:
+                        st.session_state["selected_service"] = "research"
+                    st.rerun()
+            if st.button("Logout"):
+                st.session_state.logged_in = False
+                st.session_state.selected_service = None
+                st.session_state.current_page = "login"
                 st.rerun()
-            else:
-                st.error("Please enter a username")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-def check_login_status():
-    """Check if user is logged in"""
-    initialize_login_state()
-    return st.session_state["logged_in"]
