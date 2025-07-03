@@ -71,44 +71,84 @@ def get_service_selection_css():
     </style>
     """
 
-@st.cache_data
-def get_service_content():
-    """Cache service content to prevent unnecessary recomputation"""
-    return {
-        "research": {
-            "icon": "🔍",
-            "title": "Research",
-            "description": "Access our comprehensive accounting research tools and guidance. "
-                         "Get instant answers to your accounting queries with AI-powered assistance."
-        },
-        "memo": {
-            "icon": "📝",
-            "title": "Memo Generation",
-            "description": "Generate detailed accounting memorandums automatically. "
-                         "Streamline your documentation process with our intelligent memo generator."
-        }
+def initialize_service_selection_state():
+    """Initialize service selection related session state variables"""
+    service_state_variables = {
+        "research_btn_clicked": False,
+        "memo_btn_clicked": False,
+        "switch_service_btn_clicked": False,
+        "logout_btn_clicked": False,
+        "service_content_loaded": False,
+        "service_content": None
     }
-
-def handle_service_selection(service: str):
-    """Handle service selection without immediate rerun"""
-    if "service_selection_pending" not in st.session_state:
-        st.session_state.service_selection_pending = None
     
-    st.session_state.service_selection_pending = service
-    st.session_state.selected_service = service
+    for var, default_value in service_state_variables.items():
+        if var not in st.session_state:
+            st.session_state[var] = default_value
+
+def get_service_content():
+    """Get service content from session state or initialize it"""
+    if not st.session_state.get("service_content_loaded", False):
+        st.session_state["service_content"] = {
+            "research": {
+                "icon": "🔍",
+                "title": "Research",
+                "description": "Access our comprehensive accounting research tools and guidance. "
+                             "Get instant answers to your accounting queries with AI-powered assistance."
+            },
+            "memo": {
+                "icon": "📝",
+                "title": "Memo Generation",
+                "description": "Generate detailed accounting memorandums automatically. "
+                             "Streamline your documentation process with our intelligent memo generator."
+            }
+        }
+        st.session_state["service_content_loaded"] = True
+    
+    return st.session_state["service_content"]
+
+def handle_research_service_selection():
+    """Handle research service selection"""
+    if st.session_state.get("research_btn_clicked", False):
+        st.session_state["selected_service"] = "research"
+        st.session_state["research_btn_clicked"] = False  # Reset the button state
+        st.rerun()  # Only rerun when service is actually selected
+
+def handle_memo_service_selection():
+    """Handle memo service selection"""
+    if st.session_state.get("memo_btn_clicked", False):
+        st.session_state["selected_service"] = "memo"
+        st.session_state["memo_btn_clicked"] = False  # Reset the button state
+        st.rerun()  # Only rerun when service is actually selected
+
+def handle_switch_service():
+    """Handle switching between services"""
+    if st.session_state.get("switch_service_btn_clicked", False):
+        current_service = st.session_state.get("selected_service")
+        if current_service == "research":
+            st.session_state["selected_service"] = "memo"
+        elif current_service == "memo":
+            st.session_state["selected_service"] = "research"
+        st.session_state["switch_service_btn_clicked"] = False  # Reset the button state
+        st.rerun()
+
+def handle_logout():
+    """Handle logout functionality"""
+    if st.session_state.get("logout_btn_clicked", False):
+        # Reset all relevant session state
+        st.session_state["logged_in"] = False
+        st.session_state["selected_service"] = None
+        st.session_state["current_page"] = "login"
+        st.session_state["logout_btn_clicked"] = False  # Reset the button state
+        st.rerun()
 
 def service_selection_page():
-    """Render the service selection page with optimized performance"""
+    """Render the service selection page with session state management"""
     # Initialize session state for service selection
+    initialize_service_selection_state()
+    
     if "selected_service" not in st.session_state:
         st.session_state.selected_service = None
-    
-    # Page configuration
-    # st.set_page_config(
-    #     page_title="Service Selection",
-    #     layout="wide",
-    #     initial_sidebar_state="collapsed"
-    # )
     
     # Apply CSS
     st.markdown(get_service_selection_css(), unsafe_allow_html=True)
@@ -116,7 +156,7 @@ def service_selection_page():
     # Render header
     render_header()
     
-    # Get cached service content
+    # Get service content from session state
     services = get_service_content()
     
     # Page header
@@ -140,8 +180,10 @@ def service_selection_page():
         </div>
         """
         st.markdown(research_content, unsafe_allow_html=True)
-        if st.button("Select Research Service", key="research", use_container_width=True):
-            handle_service_selection("research")
+        
+        # Research service button
+        if st.button("Select Research Service", key="research_service_btn", use_container_width=True):
+            st.session_state["research_btn_clicked"] = True
     
     with col2:
         memo_content = f"""
@@ -152,28 +194,29 @@ def service_selection_page():
         </div>
         """
         st.markdown(memo_content, unsafe_allow_html=True)
-        if st.button("Select Memo Generation", key="memo", use_container_width=True):
-            handle_service_selection("memo")
+        
+        # Memo service button
+        if st.button("Select Memo Generation", key="memo_service_btn", use_container_width=True):
+            st.session_state["memo_btn_clicked"] = True
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Handle service selection and navigation
-    if st.session_state.get("service_selection_pending"):
-        st.rerun()
+    # Handle service selections - only rerun when necessary
+    handle_research_service_selection()
+    handle_memo_service_selection()
     
-    # Logout and Switch Service buttons in sidebar
+    # Sidebar controls (only show when sidebar is not disabled)
     if not st.session_state.get("sidebar_disabled", False):
         with st.sidebar:
-            # Switch Service button toggles between research and memo
+            # Switch Service button - only show if a service is already selected
             if st.session_state.get("selected_service") in ("research", "memo"):
-                if st.button("Switch Service"):
-                    if st.session_state["selected_service"] == "research":
-                        st.session_state["selected_service"] = "memo"
-                    else:
-                        st.session_state["selected_service"] = "research"
-                    st.rerun()
-            if st.button("Logout"):
-                st.session_state.logged_in = False
-                st.session_state.selected_service = None
-                st.session_state.current_page = "login"
-                st.rerun()
+                if st.button("Switch Service", key="switch_service_btn"):
+                    st.session_state["switch_service_btn_clicked"] = True
+            
+            # Logout button
+            if st.button("Logout", key="logout_btn"):
+                st.session_state["logout_btn_clicked"] = True
+    
+    # Handle sidebar actions
+    handle_switch_service()
+    handle_logout()
