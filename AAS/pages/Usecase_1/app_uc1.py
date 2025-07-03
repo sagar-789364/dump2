@@ -5,7 +5,7 @@ import PyPDF2
 from pages.Usecase_1.rag_sk_uc1 import (
     generate_guidance_response_sync,
     generate_document_sync,
-    get_author_options_from_index,  # changed
+    get_author_options_from_index,
     get_framework_options_from_index,
     get_accounting_standards_options_from_index,
     get_topics_options_from_index,
@@ -42,6 +42,13 @@ import base64
 
 def fetch_all_sessions_from_memory():
     """Fetch all conversations from persistent memory and reconstruct sessions."""
+    # Check if we already have sessions loaded to avoid unnecessary API calls
+    if "sessions_loaded" not in st.session_state:
+        st.session_state["sessions_loaded"] = False
+    
+    if st.session_state["sessions_loaded"] and "all_sessions" in st.session_state:
+        return st.session_state["all_sessions"]
+    
     config = AzureConfig()
     memory_plugin = ConversationMemoryPlugin(config)
     import asyncio
@@ -90,17 +97,46 @@ def fetch_all_sessions_from_memory():
         )
         return session_list
 
-    return asyncio.run(fetch())
+    sessions = asyncio.run(fetch())
+    st.session_state["all_sessions"] = sessions
+    st.session_state["sessions_loaded"] = True
+    return sessions
 
 
-# Remove the @st.cache_data decorator and use st.cache_resource with show_spinner=False
-def get_cached_options():
+def get_dropdown_options():
+    """Get dropdown options using session state instead of caching"""
+    # Initialize options_loaded flag
+    if "options_loaded" not in st.session_state:
+        st.session_state["options_loaded"] = False
+    
+    # Check if options need to be reloaded
+    if "reload_dropdown_options" in st.session_state and st.session_state["reload_dropdown_options"]:
+        st.session_state["options_loaded"] = False
+        st.session_state["reload_dropdown_options"] = False
+    
+    # Load options if not already loaded
+    if not st.session_state["options_loaded"]:
+        try:
+            st.session_state["author_options"] = get_author_options_from_index()
+            st.session_state["framework_options"] = get_framework_options_from_index()
+            st.session_state["accounting_standards_options"] = get_accounting_standards_options_from_index()
+            st.session_state["topics_options"] = get_topics_options_from_index()
+            st.session_state["options_loaded"] = True
+        except Exception as e:
+            st.error(f"Error loading dropdown options: {str(e)}")
+            # Set default empty options
+            st.session_state["author_options"] = []
+            st.session_state["framework_options"] = []
+            st.session_state["accounting_standards_options"] = []
+            st.session_state["topics_options"] = []
+    
     return {
-        "author_options": get_author_options_from_index(),
-        "framework_options": get_framework_options_from_index(),
-        "accounting_standards_options": get_accounting_standards_options_from_index(),
-        "topics_options": get_topics_options_from_index()
+        "author_options": st.session_state.get("author_options", []),
+        "framework_options": st.session_state.get("framework_options", []),
+        "accounting_standards_options": st.session_state.get("accounting_standards_options", []),
+        "topics_options": st.session_state.get("topics_options", [])
     }
+
 
 def initialize_session_state():
     """Initialize all session state variables without triggering reruns"""
@@ -117,7 +153,13 @@ def initialize_session_state():
         "orchestrators": {},
         "last_cleared": False,
         "show_upload_section": False,
-        "memory_loaded": False
+        "memory_loaded": False,
+        "options_loaded": False,
+        "sessions_loaded": False,
+        "show_upload_page": False,
+        "upload_in_progress": False,
+        "upload_success": False,
+        "should_rerun": False
     }
     
     # Initialize without triggering reruns
@@ -163,6 +205,7 @@ def create_new_session():
     st.session_state.current_conversations = []
     clear_input_fields()
 
+
 def add_current_session_to_sidebar():
     """Add current session to sidebar when first conversation is created"""
     if not st.session_state.current_conversations or not st.session_state.current_session_id:
@@ -186,6 +229,7 @@ def add_current_session_to_sidebar():
         st.session_state.all_sessions.append(session_data)
         sort_sessions_by_last_updated()
 
+
 def switch_to_session(session_id):
     """Switch to a specific session and load its conversations from memory"""
     save_current_session()
@@ -198,6 +242,7 @@ def switch_to_session(session_id):
             st.session_state["should_rerun"] = True
             break
 
+
 def render_sidebar_sessions():
     """Render the sessions in the sidebar"""
     with st.sidebar:
@@ -205,12 +250,16 @@ def render_sidebar_sessions():
         st.markdown("### 💬 Sessions")
         
         # New Session Button
-        if st.button("➕ New Session"):
+        if st.button("➕ New Session", key="new_session_btn"):
             create_new_session()
             st.session_state["should_rerun"] = True
             st.rerun()
         
         st.markdown("---")
+        
+        # Load sessions if not already loaded
+        if not st.session_state.get("sessions_loaded", False):
+            st.session_state["all_sessions"] = fetch_all_sessions_from_memory()
         
         # Display all sessions (ordered by most recent activity)
         if st.session_state.all_sessions:
@@ -249,38 +298,26 @@ def render_sidebar_sessions():
                 st.markdown(f"**Conversations:** {len(st.session_state.current_conversations)}")
         else:
             st.info("No active session. Submit a query to start.")
-        
-        # Add Switch Service and Logout buttons
-        st.markdown("---")
-        if st.session_state.get("selected_service") in ("research", "memo"):
-            if st.button("Switch Service", key="switch_service_btn"):
-                if st.session_state["selected_service"] == "research":
-                    st.session_state["selected_service"] = "memo"
-                else:
-                    st.session_state["selected_service"] = "research"
-                st.rerun()
-        if st.button("Logout", key="logout_btn"):
-            st.session_state.logged_in = False
-            st.session_state.selected_service = None
-            st.session_state.current_page = "login"
-            st.rerun()
+
 
 def upload_file_toggle():
     """Sidebar toggle between Upload Files and Research modes."""
     with st.sidebar:
-        if "show_upload_page" not in st.session_state:
-            st.session_state["show_upload_page"] = False
-        if st.session_state["show_upload_page"]:
+        if st.session_state.get("show_upload_page", False):
             toggle_label = "🔍 Research"
         else:
             toggle_label = "📤 Upload Files"
+        
         if st.button(toggle_label, key="toggle_upload_page_btn"):
-            st.session_state["show_upload_page"] = not st.session_state["show_upload_page"]
+            st.session_state["show_upload_page"] = not st.session_state.get("show_upload_page", False)
             st.session_state["show_upload_section"] = st.session_state["show_upload_page"]
             st.rerun()
 
+
 def research_section(options):
+    """Render the research section with form"""
     col1, col_sep, col2 = st.columns([0.99, 0.02, 0.99])
+    
     with col1:
         st.subheader("Ask a New Question")
         with st.form(key='query_form'):
@@ -320,6 +357,7 @@ def research_section(options):
                 height=100,
                 key=f"question_input_{st.session_state.input_preserve_key}"
             )
+            
             col1_btn, col_sep, col2_btn = st.columns([0.99, 0.02, 0.99])
             with col1_btn:
                 clear_button = st.form_submit_button("Clear inputs", on_click=clear_input_fields)
@@ -337,6 +375,7 @@ def research_section(options):
                         )
                     if success:
                         st.session_state["show_response"] = True
+                        add_current_session_to_sidebar()
                     else:
                         st.session_state["show_response"] = False
 
@@ -350,49 +389,51 @@ def research_section(options):
 
 # =================== MAIN APPLICATION ===================
 def main():
+    """Main application function"""
     initialize_session_state()
     render_header()
 
-    # Dropdown reload logic after upload
-    @st.cache_resource(show_spinner=False)
-    def _get_options():
-        return get_cached_options()
-
-    if st.session_state.get("reload_dropdown_options", False):
-        _get_options.clear()
-        st.session_state.pop("reload_dropdown_options", None)
-
-    options = _get_options()
-    st.session_state["_get_options"] = options
+    # Get dropdown options using session state
+    options = get_dropdown_options()
 
     st.markdown(get_custom_css(), unsafe_allow_html=True)
     st.markdown(
         "<h1 style='text-align: center;'>Accounting Research Chatbot</h1>",
         unsafe_allow_html=True
     )
+    
+    # Render upload toggle
     upload_file_toggle()
-    if st.session_state["show_upload_page"]:
-        options = _get_options()
+    
+    # Render main content based on mode
+    if st.session_state.get("show_upload_page", False):
         render_upload_section(None, options["framework_options"], 
                               options["accounting_standards_options"], 
                               options["topics_options"], 
                               options["author_options"])
     else:
         research_section(options)
+    
+    # Render sidebar sessions
     render_sidebar_sessions()
+    
+    # Save current session
     save_current_session()
+    
+    # Render service controls in sidebar
     with st.sidebar:
         st.markdown("<div style='flex:1'></div>", unsafe_allow_html=True)
-        if st.button("Switch Service", key="switch_service_btn"):
+        if st.button("Switch Service", key="switch_service_sidebar_btn"):
             st.session_state.selected_service = None
             st.rerun()
-        logout_clicked = st.button("Logout", key="logout_btn")
-        if logout_clicked:
+        
+        if st.button("Logout", key="logout_sidebar_btn"):
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.session_state["sidebar_collapsed"] = True
-            st.experimental_set_query_params(page="login")
             st.rerun()
+    
+    # Handle sidebar collapse
     if st.session_state.get("sidebar_collapsed"):
         st.markdown(
             """
@@ -406,6 +447,8 @@ def main():
             """,
             unsafe_allow_html=True,
         )
+    
+    # Apply main content styling
     main_class = "main-content sidebar-expanded" if st.session_state.sidebar_expanded else "main-content"
     st.markdown(f'<div class="{main_class}"></div>', unsafe_allow_html=True)
 
